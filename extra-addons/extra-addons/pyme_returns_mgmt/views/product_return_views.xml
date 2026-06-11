@@ -1,0 +1,214 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_pyme_devolucion_form" model="ir.ui.view">
+        <field name="name">pyme.devolucion.form</field>
+        <field name="model">pyme.devolucion</field>
+        <field name="arch" type="xml">
+            <form string="Gestión Técnica de Devoluciones">
+                <header>
+                    <button name="boton_confirmar" string="Validar Recepción" type="object" 
+                            invisible="estado != 'borrador'" class="oe_highlight" icon="fa-check-square-o"/>
+                    <button name="boton_solicitar_reembolso" string="Reembolso" type="object" 
+                            invisible="estado != 'proceso'" class="btn-success" icon="fa-money"/>
+                    <button name="boton_reemplazar_producto" string="Sustitución" type="object" 
+                            invisible="estado != 'proceso'" class="btn-primary" icon="fa-exchange"/>
+                    <button name="boton_generar_saldo" string="Saldo Favor" type="object" 
+                            invisible="estado != 'proceso'" class="btn-warning" icon="fa-ticket"/>
+                    <field name="estado" widget="statusbar" statusbar_visible="borrador,proceso,finalizado"/>
+                </header>
+                <sheet>
+                    <widget name="web_ribbon" title="Urgente" bg_color="text-bg-danger" invisible="dias_retraso &lt; 3 or estado == 'finalizado'"/>
+                    
+                    <div class="oe_title">
+                        <h1><field name="nombre" readonly="1"/></h1>
+                    </div>
+                    
+                    <group>
+                        <group string="Datos del Cliente y Producto">
+                            <field name="cliente_id" options="{'no_create': True}" readonly="estado != 'borrador'"/>
+                            <field name="producto_id" options="{'no_create': True}" readonly="estado != 'borrador'"/>
+                            <field name="valor_estimado" widget="monetary" string="Costo Impacto"/>
+                        </group>
+                        <group string="Control de Tiempos y Motivos">
+                            <field name="cantidad" readonly="estado != 'borrador'"/>
+                            <field name="motivo" widget="radio" options="{'horizontal': true}" readonly="estado != 'borrador'"/>
+                            <field name="dias_retraso" string="Días de Retraso" decoration-danger="dias_retraso >= 3" invisible="estado == 'finalizado'"/>
+                            <field name="tiempo_respuesta_texto" invisible="estado != 'finalizado'"/>
+                        </group>
+                    </group>
+
+                    <notebook>
+                        <page string="Análisis de Auditoría" icon="fa-camera">
+                            <separator string="Dictamen Técnico de Calidad"/>
+                            <field name="descripcion_devolucion" placeholder="Obligatorio para procesar..." readonly="estado == 'finalizado'"/>
+                            
+                            <separator string="Evidencias (Fotos de Producto y Factura)"/>
+                            <field name="imagen_ids" mode="kanban" readonly="estado == 'finalizado'">
+                                <kanban>
+                                    <field name="id"/>
+                                    <field name="nombre"/>
+                                    <field name="archivo"/>
+                                    <templates>
+                                        <t t-name="kanban-box">
+                                            <div class="oe_kanban_global_click" style="width: 130px; border: 1px solid #ddd; padding: 5px; margin: 5px;">
+                                                <div class="o_kanban_image text-center">
+                                                    <img t-if="record.archivo.raw_value" 
+                                                         t-att-src="kanban_image('pyme.devolucion.imagen', 'archivo', record.id.raw_value)" 
+                                                         style="max-width: 100%; height: auto; display: block; margin: 0 auto;"/>
+                                                </div>
+                                                <div class="oe_kanban_details text-center">
+                                                    <field name="nombre"/>
+                                                </div>
+                                            </div>
+                                        </t>
+                                    </templates>
+                                </kanban>
+                                <form>
+                                    <group>
+                                        <field name="nombre" placeholder="Nombre (Ej: Factura de compra)"/>
+                                        <field name="archivo" widget="image" class="oe_avatar"/>
+                                    </group>
+                                </form>
+                            </field>
+                        </page>
+                        <page string="Resolución Final" icon="fa-info-circle" invisible="estado != 'finalizado'">
+                            <group>
+                                <field name="resolucion"/>
+                                <field name="write_date" string="Fecha de Cierre" readonly="1"/>
+                            </group>
+                        </page>
+                    </notebook>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids" widget="mail_followers"/>
+                    <field name="activity_ids" widget="mail_activity"/>
+                    <field name="message_ids" widget="mail_thread"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_pyme_devolucion_tree" model="ir.ui.view">
+        <field name="name">pyme.devolucion.tree</field>
+        <field name="model">pyme.devolucion</field>
+        <field name="arch" type="xml">
+            <tree decoration-danger="dias_retraso >= 3 and estado != 'finalizado'" 
+                  decoration-success="estado == 'finalizado'" sample="1">
+                <field name="dias_retraso" column_invisible="True"/>
+                <field name="nombre" decoration-bf="1"/>
+                <field name="cliente_id"/>
+                <field name="producto_id"/>
+                <field name="motivo" widget="badge"/>
+                <field name="valor_estimado" sum="Total" widget="monetary"/>
+                <field name="estado" widget="badge" decoration-info="estado == 'proceso'" decoration-success="estado == 'finalizado'"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_pyme_devolucion_search" model="ir.ui.view">
+        <field name="name">pyme.devolucion.search</field>
+        <field name="model">pyme.devolucion</field>
+        <field name="arch" type="xml">
+            <search string="Filtros de Devolución">
+                <field name="nombre"/>
+                <field name="cliente_id"/>
+                <field name="producto_id"/>
+                <filter string="Retrasados (>3 días)" name="late" domain="[('dias_retraso', '>=', 3), ('estado', '!=', 'finalizado')]"/>
+                <filter string="Finalizados" name="done" domain="[('estado', '=', 'finalizado')]"/>
+                <group expand="0" string="Agrupar Por">
+                    <filter string="Causal" name="group_motivo" context="{'group_by': 'motivo'}"/>
+                    <filter string="Cliente" name="group_cliente" context="{'group_by': 'cliente_id'}"/>
+                </group>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_pyme_devolucion_graph" model="ir.ui.view">
+        <field name="name">pyme.devolucion.graph</field>
+        <field name="model">pyme.devolucion</field>
+        <field name="arch" type="xml">
+            <graph string="Estadísticas de Calidad" type="bar">
+                <field name="motivo" type="row"/>
+                <field name="valor_estimado" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_pyme_devolucion_pivot" model="ir.ui.view">
+        <field name="name">pyme.devolucion.pivot</field>
+        <field name="model">pyme.devolucion</field>
+        <field name="arch" type="xml">
+            <pivot string="Análisis de Logística Inversa">
+                <field name="motivo" type="row"/>
+                <field name="resolucion" type="col"/>
+                <field name="valor_estimado" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_report_pyme_devolucion" model="ir.actions.report">
+        <field name="name">Acta de Devolución PDF</field>
+        <field name="model">pyme.devolucion</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">pyme_returns_mgmt.report_devolucion_template</field>
+        <field name="binding_model_id" ref="model_pyme_devolucion"/>
+    </record>
+
+    <template id="report_devolucion_template">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <h2 class="text-center" style="color: #d9534f;">ACTA TÉCNICA DE DEVOLUCIÓN</h2>
+                        <div class="row mt32 mb32">
+                            <div class="col-6">
+                                <strong>Cliente:</strong> <span t-field="o.cliente_id.name"/><br/>
+                                <strong>Producto:</strong> <span t-field="o.producto_id.name"/><br/>
+                                <strong>Fecha Solicitud:</strong> <span t-field="o.create_date"/>
+                            </div>
+                            <div class="col-6 text-right">
+                                <strong>Referencia:</strong> <span t-field="o.nombre"/><br/>
+                                <strong>Resolución:</strong> <span t-field="o.resolucion"/><br/>
+                                <strong>Costo Impacto:</strong> <span t-field="o.valor_estimado"/>
+                            </div>
+                        </div>
+                        <table class="table table-sm table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Causal</th>
+                                    <th>Cantidad</th>
+                                    <th>Dictamen Auditoría</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span t-field="o.motivo"/></td>
+                                    <td><span t-field="o.cantidad"/></td>
+                                    <td><span t-field="o.descripcion_devolucion"/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <div class="mt64">
+                            <div class="row">
+                                <div class="col-6 text-center">___________________<br/>Firma de Calidad</div>
+                                <div class="col-6 text-center">___________________<br/>Firma Cliente</div>
+                            </div>
+                        </div>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <record id="action_pyme_devolucion" model="ir.actions.act_window">
+        <field name="name">Control de Devoluciones</field>
+        <field name="res_model">pyme.devolucion</field>
+        <field name="view_mode">tree,form,graph,pivot</field>
+        <field name="help" type="html">
+            <p class="o_view_nocontent_smiling_face">Cree su primera gestión de devolución aquí.</p>
+        </field>
+    </record>
+
+    <menuitem id="menu_pyme_root" name="Devoluciones Pro" sequence="10" web_icon="fa fa-undo"/>
+    <menuitem id="menu_pyme_gest" name="Panel Operativo" parent="menu_pyme_root" action="action_pyme_devolucion"/>
+</odoo>

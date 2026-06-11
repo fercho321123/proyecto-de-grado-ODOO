@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="action_report_pyme_devolucion" model="ir.actions.report">
+        <field name="name">Comprobante de Devolución</field>
+        <field name="model">pyme.devolucion</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">pyme_returns_mgmt.report_pyme_devolucion</field>
+        <field name="report_file">pyme_returns_mgmt.report_pyme_devolucion</field>
+        <field name="print_report_name">'Devolucion_%s' % (object.nombre)</field>
+        <field name="binding_model_id" ref="model_pyme_devolucion"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_pyme_devolucion_document">
+        <t t-call="web.external_layout">
+            <t t-set="o" t-value="o.with_context(lang=o.cliente_id.lang)"/>
+            <div class="page">
+                <style>
+                    .pyme_header { color: #13518b; border-bottom: 3px solid #13518b; margin-bottom: 20px; }
+                    .pyme_table thead { background-color: #13518b; color: white; }
+                    .pyme_box { border-left: 5px solid #13518b; background-color: #fdf5e6; padding: 15px; }
+                </style>
+
+                <div class="row pyme_header mt-4">
+                    <div class="col-7">
+                        <h2>Comprobante de Devolución</h2>
+                        <h3 t-field="o.nombre"/>
+                    </div>
+                    <div class="col-5 text-end">
+                        <div t-field="o.nombre" t-options="{'widget': 'barcode', 'width': 600, 'height': 100, 'img_style': 'width:300px;height:50px;'}"/>
+                        <p class="text-muted small">ID de Seguimiento Interno</p>
+                    </div>
+                </div>
+
+                <div class="row mb-4">
+                    <div class="col-6">
+                        <strong>Cliente:</strong>
+                        <div t-field="o.cliente_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
+                    </div>
+                    <div class="col-6 text-end">
+                        <strong>Fecha de Emisión:</strong>
+                        <p t-esc="datetime.datetime.now().strftime('%Y-%m-%d')"/><br/>
+                        <strong>Estado:</strong>
+                        <span class="badge" t-field="o.estado" style="border: 1px solid #8B4513; color: #8B4513; padding: 5px;"/>
+                    </div>
+                </div>
+
+                <table class="table table-sm o_main_table pyme_table mt-4">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th class="text-center">Cantidad</th>
+                            <th class="text-center">Motivo de Devolución</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td>
+                                <span t-field="o.producto_id.name"/><br/>
+                                <small class="text-muted">Ref: <span t-field="o.producto_id.default_code"/></small>
+                            </td>
+                            <td class="text-center">
+                                <span t-field="o.cantidad"/> <span t-field="o.producto_id.uom_id.name"/>
+                            </td>
+                            <td class="text-center">
+                                <span t-field="o.motivo"/>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="pyme_box mt-4">
+                    <strong>Observaciones y Justificación:</strong>
+                    <p t-field="o.descripcion_devolucion" class="mt-2"/>
+                </div>
+
+                <div class="row mt-5 pt-5">
+                    <div class="col-6 text-center">
+                        <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"/>
+                        <p>Recibido por Cliente</p>
+                    </div>
+                    <div class="col-6 text-center">
+                        <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"/>
+                        <p>Autorizado por Almacén</p>
+                    </div>
+                </div>
+            </div>
+        </t>
+    </template>
+
+    <template id="report_pyme_devolucion">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="o">
+                <t t-call="pyme_returns_mgmt.report_pyme_devolucion_document"/>
+            </t>
+        </t>
+    </template>
+</odoo>

@@ -1,0 +1,11 @@
+{
+    "python.analysis.diagnosticSeverityOverrides": {
+        "reportMissingImports": "none",
+        "reportUndefinedVariable": "none"
+    },
+    "xml.validation.enabled": false,
+    "python.analysis.ignore": [
+        "**/*.xml"
+    ],
+    "python.languageServer": "None"
+}
