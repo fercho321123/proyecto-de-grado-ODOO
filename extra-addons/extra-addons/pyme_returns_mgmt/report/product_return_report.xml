@@ -1,98 +1,119 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
+
     <record id="action_report_pyme_devolucion" model="ir.actions.report">
-        <field name="name">Comprobante de Devolución</field>
+        <field name="name">Acta de Devolución PDF</field>
         <field name="model">pyme.devolucion</field>
         <field name="report_type">qweb-pdf</field>
-        <field name="report_name">pyme_returns_mgmt.report_pyme_devolucion</field>
-        <field name="report_file">pyme_returns_mgmt.report_pyme_devolucion</field>
+        <field name="report_name">pyme_returns_mgmt.report_devolucion_main</field>
+        <field name="report_file">pyme_returns_mgmt.report_devolucion_main</field>
         <field name="print_report_name">'Devolucion_%s' % (object.nombre)</field>
         <field name="binding_model_id" ref="model_pyme_devolucion"/>
         <field name="binding_type">report</field>
     </record>
 
-    <template id="report_pyme_devolucion_document">
-        <t t-call="web.external_layout">
-            <t t-set="o" t-value="o.with_context(lang=o.cliente_id.lang)"/>
-            <div class="page">
-                <style>
-                    .pyme_header { color: #13518b; border-bottom: 3px solid #13518b; margin-bottom: 20px; }
-                    .pyme_table thead { background-color: #13518b; color: white; }
-                    .pyme_box { border-left: 5px solid #13518b; background-color: #fdf5e6; padding: 15px; }
-                </style>
-
-                <div class="row pyme_header mt-4">
-                    <div class="col-7">
-                        <h2>Comprobante de Devolución</h2>
-                        <h3 t-field="o.nombre"/>
-                    </div>
-                    <div class="col-5 text-end">
-                        <div t-field="o.nombre" t-options="{'widget': 'barcode', 'width': 600, 'height': 100, 'img_style': 'width:300px;height:50px;'}"/>
-                        <p class="text-muted small">ID de Seguimiento Interno</p>
-                    </div>
-                </div>
-
-                <div class="row mb-4">
-                    <div class="col-6">
-                        <strong>Cliente:</strong>
-                        <div t-field="o.cliente_id" t-options='{"widget": "contact", "fields": ["address", "name"], "no_marker": True}'/>
-                    </div>
-                    <div class="col-6 text-end">
-                        <strong>Fecha de Emisión:</strong>
-                        <p t-esc="datetime.datetime.now().strftime('%Y-%m-%d')"/><br/>
-                        <strong>Estado:</strong>
-                        <span class="badge" t-field="o.estado" style="border: 1px solid #8B4513; color: #8B4513; padding: 5px;"/>
-                    </div>
-                </div>
-
-                <table class="table table-sm o_main_table pyme_table mt-4">
-                    <thead>
-                        <tr>
-                            <th>Producto</th>
-                            <th class="text-center">Cantidad</th>
-                            <th class="text-center">Motivo de Devolución</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <span t-field="o.producto_id.name"/><br/>
-                                <small class="text-muted">Ref: <span t-field="o.producto_id.default_code"/></small>
-                            </td>
-                            <td class="text-center">
-                                <span t-field="o.cantidad"/> <span t-field="o.producto_id.uom_id.name"/>
-                            </td>
-                            <td class="text-center">
-                                <span t-field="o.motivo"/>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-
-                <div class="pyme_box mt-4">
-                    <strong>Observaciones y Justificación:</strong>
-                    <p t-field="o.descripcion_devolucion" class="mt-2"/>
-                </div>
-
-                <div class="row mt-5 pt-5">
-                    <div class="col-6 text-center">
-                        <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"/>
-                        <p>Recibido por Cliente</p>
-                    </div>
-                    <div class="col-6 text-center">
-                        <div style="border-top: 1px solid black; width: 80%; margin: 0 auto;"/>
-                        <p>Autorizado por Almacén</p>
-                    </div>
-                </div>
-            </div>
-        </t>
-    </template>
-
-    <template id="report_pyme_devolucion">
+    <template id="report_devolucion_main">
         <t t-call="web.html_container">
             <t t-foreach="docs" t-as="o">
-                <t t-call="pyme_returns_mgmt.report_pyme_devolucion_document"/>
+                <t t-call="web.external_layout">
+                    <div class="page">
+                        <style>
+                            .pyme_header { color: #13518b; border-bottom: 3px solid #13518b; margin-bottom: 20px; padding-bottom: 10px; }
+                            .pyme_table thead { background-color: #13518b; color: white; }
+                            .pyme_box { border-left: 5px solid #13518b; background-color: #f0f7ff; padding: 15px; margin-top: 15px; }
+                            .pyme_sign { border-top: 1px solid #333; width: 70%; margin: 0 auto; padding-top: 5px; }
+                            .badge-estado { display: inline-block; padding: 4px 10px; border-radius: 4px; border: 1px solid #13518b; color: #13518b; font-size: 12px; }
+                        </style>
+
+                        <!-- Encabezado -->
+                        <div class="row pyme_header mt-4">
+                            <div class="col-7">
+                                <h2 class="mb-0">Acta Técnica de Devolución</h2>
+                                <h4 class="mt-1"><span t-field="o.nombre"/></h4>
+                            </div>
+                            <div class="col-5 text-end">
+                                <span t-field="o.nombre"
+                                      t-options="{'widget': 'barcode', 'width': 600, 'height': 100, 'img_style': 'width:280px;height:50px;'}"/>
+                                <p class="text-muted small mt-1">ID de Seguimiento</p>
+                            </div>
+                        </div>
+
+                        <!-- Datos generales -->
+                        <div class="row mb-4">
+                            <div class="col-6">
+                                <strong>Cliente:</strong><br/>
+                                <span t-field="o.cliente_id"
+                                      t-options='{"widget":"contact","fields":["name","address"],"no_marker":true}'/>
+                            </div>
+                            <div class="col-6 text-end">
+                                <p>
+                                    <strong>Fecha de Emisión: </strong>
+                                    <t t-out="datetime.datetime.now().strftime('%Y-%m-%d')"/>
+                                </p>
+                                <p>
+                                    <strong>Responsable: </strong>
+                                    <span t-field="o.responsable_id"/>
+                                </p>
+                                <p>
+                                    <strong>Estado: </strong>
+                                    <span class="badge-estado" t-field="o.estado"/>
+                                </p>
+                                <p t-if="o.resolucion">
+                                    <strong>Resolución: </strong>
+                                    <span t-field="o.resolucion"/>
+                                </p>
+                            </div>
+                        </div>
+
+                        <!-- Detalle del producto -->
+                        <table class="table table-sm o_main_table pyme_table mt-4">
+                            <thead>
+                                <tr>
+                                    <th>Producto</th>
+                                    <th class="text-center">Referencia</th>
+                                    <th class="text-center">Cantidad</th>
+                                    <th class="text-center">Causal</th>
+                                    <th class="text-end">Valor Impacto</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span t-field="o.producto_id.name"/></td>
+                                    <td class="text-center"><span t-field="o.producto_id.default_code"/></td>
+                                    <td class="text-center">
+                                        <span t-field="o.cantidad"/>
+                                        <span t-field="o.producto_id.uom_id.name"/>
+                                    </td>
+                                    <td class="text-center"><span t-field="o.motivo"/></td>
+                                    <td class="text-end">
+                                        <span t-field="o.valor_estimado"
+                                              t-options="{'widget':'monetary','display_currency':o.currency_id}"/>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <!-- Dictamen técnico -->
+                        <div class="pyme_box">
+                            <strong>Dictamen Técnico / Observaciones:</strong>
+                            <p class="mt-2 mb-0"><span t-field="o.descripcion_devolucion"/></p>
+                        </div>
+
+                        <!-- Firmas -->
+                        <div class="row mt-5 pt-4">
+                            <div class="col-5 text-center offset-1">
+                                <div class="pyme_sign"/>
+                                <p class="mt-2">Recibido por Cliente</p>
+                            </div>
+                            <div class="col-5 text-center offset-1">
+                                <div class="pyme_sign"/>
+                                <p class="mt-2">Autorizado por Almacén</p>
+                            </div>
+                        </div>
+                    </div>
+                </t>
             </t>
         </t>
     </template>
+
 </odoo>

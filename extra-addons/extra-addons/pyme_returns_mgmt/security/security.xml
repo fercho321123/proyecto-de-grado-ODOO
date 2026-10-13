@@ -1,17 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
     <data>
+        <!-- Categoría del módulo -->
         <record id="module_category_pyme_devoluciones" model="ir.module.category">
-            <field name="name">Devoluciones Hamburguesería</field>
+            <field name="name">Devoluciones PYME</field>
             <field name="sequence">10</field>
         </record>
 
+        <!-- Grupo: Usuario de Devoluciones (puede registrar y ver) -->
         <record id="group_devolucion_user" model="res.groups">
             <field name="name">Usuario de Devoluciones</field>
             <field name="category_id" ref="module_category_pyme_devoluciones"/>
             <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
         </record>
 
+        <!-- Grupo: Gestor de Devoluciones (puede confirmar y resolver) -->
+        <record id="group_devolucion_manager" model="res.groups">
+            <field name="name">Gestor de Devoluciones</field>
+            <field name="category_id" ref="module_category_pyme_devoluciones"/>
+            <field name="implied_ids" eval="[(4, ref('pyme_returns_mgmt.group_devolucion_user'))]"/>
+        </record>
+
+        <!-- Regla de acceso: todos los usuarios ven todas las devoluciones -->
         <record id="rule_pyme_devolucion_all" model="ir.rule">
             <field name="name">Ver todas las devoluciones</field>
             <field name="model_id" ref="model_pyme_devolucion"/>

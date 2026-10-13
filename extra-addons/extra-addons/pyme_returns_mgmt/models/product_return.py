@@ -1,6 +1,7 @@
-from odoo import models, fields, api, _ 
-from odoo.exceptions import UserError
+from odoo import models, fields, api, _
+from odoo.exceptions import UserError, ValidationError
 from datetime import timedelta
+
 
 class DevolucionProducto(models.Model):
     _name = 'pyme.devolucion'
@@ -8,140 +9,271 @@ class DevolucionProducto(models.Model):
     _description = 'Gestión de Devoluciones al Barril'
     _order = 'id desc'
 
-    nombre = fields.Char(string='Referencia', required=True, copy=False, readonly=True, default='Nuevo')
-    cliente_id = fields.Many2one('res.partner', string='Cliente', required=True, tracking=True)
-    producto_id = fields.Many2one('product.product', string='Producto', required=True, tracking=True)
-    cantidad = fields.Float(string='Cantidad', default=1.0, required=True, tracking=True)
-    
+    # ─────────────────────────────────────────────
+    #  CAMPOS BÁSICOS
+    # ─────────────────────────────────────────────
+    nombre = fields.Char(
+        string='Referencia', required=True, copy=False,
+        readonly=True, default='Nuevo'
+    )
+    cliente_id = fields.Many2one(
+        'res.partner', string='Cliente', required=True, tracking=True
+    )
+    responsable_id = fields.Many2one(
+        'res.users', string='Responsable', tracking=True,
+        default=lambda self: self.env.user
+    )
+    producto_id = fields.Many2one(
+        'product.product', string='Producto', required=True, tracking=True
+    )
+    cantidad = fields.Float(
+        string='Cantidad', default=1.0, required=True, tracking=True
+    )
+    currency_id = fields.Many2one(
+        'res.currency', string='Moneda',
+        default=lambda self: self.env.company.currency_id
+    )
+
     motivo = fields.Selection([
-        ('dañado', 'Defecto de Fabricación'),
+        ('dañado',     'Defecto de Fabricación'),
         ('incorrecto', 'Error en Pedido'),
-        ('no_gusta', 'Inconformidad'),
-        ('otros', 'Otros')
+        ('no_gusta',   'Inconformidad'),
+        ('otros',      'Otros'),
     ], string='Causal', required=True, tracking=True)
-    
+
     descripcion_devolucion = fields.Text(string='Dictamen Técnico')
-    imagen_ids = fields.One2many('pyme.devolucion.imagen', 'devolucion_id', string='Evidencias')
-    
+    imagen_ids = fields.One2many(
+        'pyme.devolucion.imagen', 'devolucion_id', string='Evidencias'
+    )
+
     estado = fields.Selection([
-        ('borrador', 'Borrador'),
-        ('proceso', 'En Validación'),
+        ('borrador',   'Borrador'),
+        ('proceso',    'En Validación'),
         ('finalizado', 'Finalizado'),
-    ], default='borrador', tracking=True)
+        ('cancelado',  'Cancelado'),
+    ], default='borrador', tracking=True, string='Estado')
 
     resolucion = fields.Selection([
-        ('dinero', 'Reembolso Solicitado'),
-        ('reemplazo', 'Sustitución Física'),
-        ('saldo', 'Nota de Crédito/Saldo')
+        ('dinero',       'Reembolso Solicitado'),
+        ('reemplazo',    'Sustitución Física'),
+        ('saldo',        'Nota de Crédito/Saldo'),
+        ('sin_garantia', 'Sin Garantía'),
     ], string='Resolución', readonly=True, tracking=True)
 
-    # --- CAMPOS CALCULADOS CON ALMACENAMIENTO PARA FILTROS ---
-    valor_estimado = fields.Float(string="Valor Impacto", compute="_compute_valor_estimado", store=True)
-    dias_retraso = fields.Integer(string='Días Retraso', compute='_compute_dias_retraso', store=True)
-    tiempo_respuesta_texto = fields.Char(string='Tiempo de Respuesta', compute='_compute_tiempo_respuesta_texto', store=True)
+    # ─────────────────────────────────────────────
+    #  RELACIONES A REGISTROS GENERADOS
+    # ─────────────────────────────────────────────
+    picking_ids = fields.Many2many(
+        'stock.picking', string='Albaranes',
+        copy=False, readonly=True
+    )
+    invoice_ids = fields.Many2many(
+        'account.move', string='Facturas/Notas de Crédito',
+        copy=False, readonly=True
+    )
+    picking_count = fields.Integer(
+        string='# Albaranes', compute='_compute_counts'
+    )
+    invoice_count = fields.Integer(
+        string='# Facturas', compute='_compute_counts'
+    )
+
+    # ─────────────────────────────────────────────
+    #  CAMPOS CALCULADOS (store=True para filtros)
+    # ─────────────────────────────────────────────
+    valor_estimado = fields.Monetary(
+        string='Valor Impacto',
+        compute='_compute_valor_estimado',
+        store=True,
+        currency_field='currency_id',
+    )
+    dias_retraso = fields.Integer(
+        string='Días Retraso',
+        compute='_compute_dias_retraso',
+        store=True,
+    )
+    tiempo_respuesta_texto = fields.Char(
+        string='Tiempo de Respuesta',
+        compute='_compute_tiempo_respuesta_texto',
+        store=True,
+    )
+
+    # ─────────────────────────────────────────────
+    #  COMPUTES
+    # ─────────────────────────────────────────────
+    @api.depends('picking_ids', 'invoice_ids')
+    def _compute_counts(self):
+        for rec in self:
+            rec.picking_count = len(rec.picking_ids)
+            rec.invoice_count = len(rec.invoice_ids)
 
     @api.depends('create_date', 'write_date', 'estado')
     def _compute_tiempo_respuesta_texto(self):
-        for reg in self:
-            if reg.estado == 'finalizado' and reg.create_date:
-                diff = reg.write_date - reg.create_date
-                reg.tiempo_respuesta_texto = f"{diff.days} días"
+        for rec in self:
+            if rec.estado == 'finalizado' and rec.create_date:
+                diff = rec.write_date - rec.create_date
+                rec.tiempo_respuesta_texto = f"{diff.days} día(s)"
             else:
-                reg.tiempo_respuesta_texto = "En proceso"
+                rec.tiempo_respuesta_texto = "En proceso"
 
     @api.depends('create_date', 'estado')
     def _compute_dias_retraso(self):
-        for reg in self:
-            if reg.estado != 'finalizado' and reg.create_date:
-                diff = fields.Date.today() - reg.create_date.date()
-                reg.dias_retraso = diff.days
+        for rec in self:
+            if rec.estado not in ('finalizado', 'cancelado') and rec.create_date:
+                diff = fields.Date.today() - rec.create_date.date()
+                rec.dias_retraso = diff.days
             else:
-                reg.dias_retraso = 0
+                rec.dias_retraso = 0
 
     @api.depends('producto_id', 'cantidad')
     def _compute_valor_estimado(self):
-        for reg in self:
-            reg.valor_estimado = (reg.producto_id.list_price or 0.0) * reg.cantidad
+        for rec in self:
+            rec.valor_estimado = (rec.producto_id.list_price or 0.0) * rec.cantidad
 
+    # ─────────────────────────────────────────────
+    #  SECUENCIA AL CREAR
+    # ─────────────────────────────────────────────
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
             if vals.get('nombre', 'Nuevo') == 'Nuevo':
-                vals['nombre'] = self.env['ir.sequence'].sudo().next_by_code('pyme.devolucion') or 'Nuevo'
-        return super(DevolucionProducto, self).create(vals_list)
+                vals['nombre'] = (
+                    self.env['ir.sequence'].sudo().next_by_code('pyme.devolucion')
+                    or 'Nuevo'
+                )
+        return super().create(vals_list)
 
+    # ─────────────────────────────────────────────
+    #  ACCIONES DE BOTONES
+    # ─────────────────────────────────────────────
     def boton_confirmar(self):
+        """Valida datos obligatorios antes de pasar a 'En Validación'."""
+        for rec in self:
+            if not rec.descripcion_devolucion:
+                raise ValidationError(
+                    _("Debe completar el Dictamen Técnico antes de validar la recepción.")
+                )
         self.write({'estado': 'proceso'})
 
-    def _ejecutar_logistica(self):
-        """Mantiene la creación de albaranes de entrada"""
-        for reg in self:
-            warehouse = self.env['stock.warehouse'].search([('company_id', '=', reg.cliente_id.company_id.id or self.env.company.id)], limit=1)
-            picking_type = self.env['stock.picking.type'].search([('code', '=', 'incoming'), ('warehouse_id', '=', warehouse.id)], limit=1)
-            if picking_type:
-                picking = self.env['stock.picking'].sudo().create({
-                    'partner_id': reg.cliente_id.id,
-                    'picking_type_id': picking_type.id,
-                    'location_id': reg.cliente_id.property_stock_customer.id,
-                    'location_dest_id': picking_type.default_location_dest_id.id,
-                    'origin': reg.nombre,
-                    'company_id': warehouse.company_id.id,
-                })
-                self.env['stock.move'].sudo().create({
-                    'name': reg.nombre,
-                    'product_id': reg.producto_id.id,
-                    'product_uom_qty': reg.cantidad,
-                    'product_uom': reg.producto_id.uom_id.id,
-                    'picking_id': picking.id,
-                    'location_id': picking.location_id.id,
-                    'location_dest_id': picking.location_dest_id.id,
-                    'company_id': warehouse.company_id.id,
-                })
-                picking.action_confirm()
+    def boton_cancelar(self):
+        for rec in self:
+            if rec.estado == 'finalizado':
+                raise UserError(_("No se puede cancelar una devolución ya finalizada."))
+        self.write({'estado': 'cancelado'})
 
+    def boton_restablecer(self):
+        """Regresa a borrador desde cancelado."""
+        self.write({'estado': 'borrador'})
+
+    def boton_sin_garantia(self):
+        """Cierra el caso indicando que el producto no tiene garantía aplicable."""
+        for rec in self:
+            if rec.estado == 'finalizado':
+                raise UserError(
+                    _("No se puede marcar como Sin Garantía una devolución ya finalizada.")
+                )
+        self.write({'resolucion': 'sin_garantia', 'estado': 'finalizado'})
+        for rec in self:
+            rec.message_post(
+                body=_("🚫 Resolución: Producto sin garantía aplicable. Caso cerrado.")
+            )
+
+    # ─────────────────────────────────────────────
+    #  LÓGÍSTICA: CREACIÓN DE ALBARÁN DE ENTRADA
+    # ─────────────────────────────────────────────
+    def _ejecutar_logistica(self):
+        """Crea un albarán de entrada por devolución (solo si aún no existe)."""
+        for rec in self:
+            # Evitar duplicados
+            if rec.picking_ids:
+                continue
+
+            company_id = self.env.company.id
+            warehouse = self.env['stock.warehouse'].search(
+                [('company_id', '=', company_id)], limit=1
+            )
+            if not warehouse:
+                raise UserError(_("No se encontró un almacén configurado para la compañía."))
+
+            picking_type = self.env['stock.picking.type'].search([
+                ('code', '=', 'incoming'),
+                ('warehouse_id', '=', warehouse.id),
+            ], limit=1)
+            if not picking_type:
+                raise UserError(_("No se encontró un tipo de operación de recepción."))
+
+            customer_location = self.env.ref('stock.stock_location_customers')
+
+            picking = self.env['stock.picking'].sudo().create({
+                'partner_id': rec.cliente_id.id,
+                'picking_type_id': picking_type.id,
+                'location_id': customer_location.id,
+                'location_dest_id': picking_type.default_location_dest_id.id,
+                'origin': rec.nombre,
+                'company_id': company_id,
+            })
+            self.env['stock.move'].sudo().create({
+                'name': f"Devolución: {rec.nombre}",
+                'product_id': rec.producto_id.id,
+                'product_uom_qty': rec.cantidad,
+                'product_uom': rec.producto_id.uom_id.id,
+                'picking_id': picking.id,
+                'location_id': picking.location_id.id,
+                'location_dest_id': picking.location_dest_id.id,
+                'company_id': company_id,
+            })
+            picking.action_confirm()
+            rec.picking_ids = [(4, picking.id)]
+
+            rec.message_post(
+                body=_("✅ Albarán de recepción creado: <b>%s</b>") % picking.name
+            )
+
+    # ─────────────────────────────────────────────
+    #  RESOLUCIONES
+    # ─────────────────────────────────────────────
     def boton_solicitar_reembolso(self):
-        """CORREGIDO: Manejo de multi-compañía para evitar RPC_ERROR de empresas incompatibles"""
+        """Crea nota de crédito (out_refund) y finaliza la devolución."""
         self._ejecutar_logistica()
-        for reg in self:
-            # Forzamos la compañía del registro o del cliente para evitar conflictos contables
-            company_id = reg.cliente_id.company_id.id or self.env.company.id
-            
-            # Buscamos el diario de ventas que pertenezca exclusivamente a esa empresa
+        for rec in self:
+            company_id = self.env.company.id
+
             journal = self.env['account.journal'].sudo().search([
                 ('type', '=', 'sale'),
-                ('company_id', '=', company_id)
+                ('company_id', '=', company_id),
             ], limit=1)
-            
             if not journal:
-                raise UserError(_("No se encontró un diario de ventas para la compañía: %s") % company_id)
+                raise UserError(
+                    _("No se encontró un diario de ventas para la compañía.")
+                )
 
-            # Determinamos la cuenta contable (debe ser de la misma empresa)
-            account_id = reg.producto_id.property_account_income_id.id or journal.default_account_id.id
-            
+            account_id = (
+                rec.producto_id.property_account_income_id.id
+                or journal.default_account_id.id
+            )
             if not account_id:
-                raise UserError(_("Configure una cuenta de ingresos en el producto o en el diario."))
+                raise UserError(
+                    _("Configure una cuenta de ingresos en el producto o en el diario.")
+                )
 
-            # Creación de la Factura Rectificativa (Refund)
-            invoice_vals = {
+            invoice = self.env['account.move'].sudo().create({
                 'move_type': 'out_refund',
-                'partner_id': reg.cliente_id.id,
+                'partner_id': rec.cliente_id.id,
                 'journal_id': journal.id,
-                'company_id': company_id, # Asignación explícita
-                'invoice_origin': reg.nombre,
+                'company_id': company_id,
+                'invoice_origin': rec.nombre,
                 'invoice_date': fields.Date.today(),
                 'invoice_line_ids': [(0, 0, {
-                    'product_id': reg.producto_id.id,
-                    'quantity': reg.cantidad,
-                    'price_unit': reg.producto_id.list_price,
-                    'name': f'Reembolso: {reg.nombre}',
+                    'product_id': rec.producto_id.id,
+                    'quantity': rec.cantidad,
+                    'price_unit': rec.producto_id.list_price,
+                    'name': f'Reembolso: {rec.nombre}',
                     'account_id': account_id,
                 })],
-            }
+            })
 
-            invoice = self.env['account.move'].sudo().create(invoice_vals)
-            
             # Adjuntar evidencias a la factura
-            for img in reg.imagen_ids:
+            for img in rec.imagen_ids:
                 self.env['ir.attachment'].sudo().create({
                     'name': f"Evidencia_{img.nombre}",
                     'type': 'binary',
@@ -153,21 +285,54 @@ class DevolucionProducto(models.Model):
             try:
                 invoice.action_post()
             except Exception as e:
-                reg.message_post(body=_("La factura se creó en borrador. Error al validar: %s") % str(e))
+                rec.message_post(
+                    body=_("La factura se creó en borrador. Error al confirmar: %s") % str(e)
+                )
 
-            reg.write({'resolucion': 'dinero', 'estado': 'finalizado'})
+            rec.invoice_ids = [(4, invoice.id)]
+            rec.write({'resolucion': 'dinero', 'estado': 'finalizado'})
+            rec.message_post(
+                body=_("💰 Reembolso procesado. Nota de crédito: <b>%s</b>") % invoice.name
+            )
 
     def boton_reemplazar_producto(self):
         self._ejecutar_logistica()
         self.write({'resolucion': 'reemplazo', 'estado': 'finalizado'})
+        for rec in self:
+            rec.message_post(body=_("🔄 Resolución: Sustitución física del producto."))
 
     def boton_generar_saldo(self):
         self._ejecutar_logistica()
         self.write({'resolucion': 'saldo', 'estado': 'finalizado'})
+        for rec in self:
+            rec.message_post(body=_("📋 Resolución: Nota de crédito / saldo a favor."))
+
+    # ─────────────────────────────────────────────
+    #  SMART BUTTONS – acciones de ventana
+    # ─────────────────────────────────────────────
+    def action_ver_albaranes(self):
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Albaranes'),
+            'res_model': 'stock.picking',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', self.picking_ids.ids)],
+        }
+
+    def action_ver_facturas(self):
+        return {
+            'type': 'ir.actions.act_window',
+            'name': _('Facturas / Notas de Crédito'),
+            'res_model': 'account.move',
+            'view_mode': 'tree,form',
+            'domain': [('id', 'in', self.invoice_ids.ids)],
+        }
+
 
 class DevolucionImagen(models.Model):
     _name = 'pyme.devolucion.imagen'
     _description = 'Evidencias de Devolución'
+
     devolucion_id = fields.Many2one('pyme.devolucion', ondelete='cascade')
     nombre = fields.Char(string='Nombre', required=True)
     archivo = fields.Binary(string='Archivo', required=True)
