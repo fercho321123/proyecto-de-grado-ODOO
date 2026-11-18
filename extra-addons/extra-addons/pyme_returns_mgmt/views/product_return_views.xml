@@ -230,8 +230,7 @@
                 <field name="responsable_id"/>
                 <templates>
                     <t t-name="kanban-box">
-                        <div t-attf-class="oe_kanban_card oe_kanban_global_click
-                            #{record.dias_retraso.raw_value >= 3 and record.estado.raw_value not in ['finalizado','cancelado'] ? 'border-danger' : ''}">
+                        <div t-attf-class="oe_kanban_card oe_kanban_global_click #{record.dias_retraso.raw_value >= 3 &amp;&amp; record.estado.raw_value !== 'finalizado' &amp;&amp; record.estado.raw_value !== 'cancelado' ? 'border-danger' : ''}">
                             <div class="oe_kanban_content p-2">
                                 <div class="d-flex justify-content-between">
                                     <strong><field name="nombre"/></strong>
@@ -261,7 +260,7 @@
                                     <span class="badge bg-danger text-white">🚫 Sin Garantía</span>
                                 </div>
                                 <div class="mt-1 small"
-                                     t-if="record.dias_retraso.raw_value > 0 and record.estado.raw_value not in ['finalizado','cancelado']">
+                                     t-if="record.dias_retraso.raw_value > 0 and record.estado.raw_value !== 'finalizado' and record.estado.raw_value !== 'cancelado'">
                                     <span t-attf-class="text-#{record.dias_retraso.raw_value >= 3 ? 'danger' : 'warning'}">
                                         ⏱ <field name="dias_retraso"/> días
                                     </span>
