@@ -1,9 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
 
-    <!-- ═══════════════════════════════════════════
-         VISTA FORMULARIO
-    ═══════════════════════════════════════════ -->
+    <!-- VISTA FORMULARIO -->
     <record id="view_pyme_devolucion_form" model="ir.ui.view">
         <field name="name">pyme.devolucion.form</field>
         <field name="model">pyme.devolucion</field>
@@ -11,46 +9,55 @@
             <form string="Gestión Técnica de Devoluciones">
                 <header>
                     <button name="boton_confirmar"
-                            string=" Validar Recepción"
+                            string="Validar Recepción"
                             type="object"
                             invisible="estado != 'borrador'"
                             class="oe_highlight"/>
+
                     <button name="boton_solicitar_reembolso"
                             string="Reembolso"
                             type="object"
                             invisible="estado != 'proceso'"
                             class="btn-success"/>
+
                     <button name="boton_reemplazar_producto"
                             string="Sustitución"
                             type="object"
                             invisible="estado != 'proceso'"
                             class="btn-primary"/>
+
                     <button name="boton_generar_saldo"
                             string="Saldo Favor"
                             type="object"
                             invisible="estado != 'proceso'"
                             class="btn-warning"/>
+
                     <button name="boton_sin_garantia"
                             string="Sin Garantía"
                             type="object"
                             invisible="estado != 'proceso'"
                             class="btn-danger"/>
+
                     <button name="boton_cancelar"
                             string="Cancelar"
                             type="object"
                             invisible="estado in ('finalizado', 'cancelado')"
                             class="btn-secondary"/>
+
                     <button name="boton_restablecer"
                             string="Restablecer a Borrador"
                             type="object"
                             invisible="estado != 'cancelado'"
                             class="btn-secondary"/>
-                    <field name="estado" widget="statusbar"
+
+                    <field name="estado"
+                           widget="statusbar"
                            statusbar_visible="borrador,proceso,finalizado"/>
                 </header>
+
                 <sheet>
-                    <!-- Cinta de urgencia -->
-                    <widget name="web_ribbon" title="⚠ Urgente"
+                    <widget name="web_ribbon"
+                            title="⚠ Urgente"
                             bg_color="text-bg-danger"
                             invisible="dias_retraso &lt; 3 or estado in ('finalizado','cancelado')"/>
 
@@ -61,14 +68,19 @@
                                 class="oe_stat_button"
                                 icon="fa-truck"
                                 invisible="picking_count == 0">
-                            <field name="picking_count" widget="statinfo" string="Albarán(es)"/>
+                            <field name="picking_count"
+                                   widget="statinfo"
+                                   string="Albarán(es)"/>
                         </button>
+
                         <button name="action_ver_facturas"
                                 type="object"
                                 class="oe_stat_button"
                                 icon="fa-file-text-o"
                                 invisible="invoice_count == 0">
-                            <field name="invoice_count" widget="statinfo" string="Factura(s)"/>
+                            <field name="invoice_count"
+                                   widget="statinfo"
+                                   string="Factura(s)"/>
                         </button>
                     </div>
 
@@ -83,83 +95,105 @@
                             <field name="cliente_id"
                                    options="{'no_create': True}"
                                    readonly="estado != 'borrador'"/>
+
                             <field name="responsable_id"
                                    options="{'no_create': True}"/>
+
                             <field name="producto_id"
                                    options="{'no_create': True}"
                                    readonly="estado != 'borrador'"/>
+
                             <field name="currency_id" invisible="1"/>
+
                             <field name="valor_estimado"
                                    widget="monetary"
                                    string="Costo de Impacto"
                                    options="{'currency_field': 'currency_id'}"/>
                         </group>
+
                         <group string="Control de Tiempos y Motivos">
-                            <field name="cantidad" readonly="estado != 'borrador'"/>
+                            <field name="cantidad"
+                                   readonly="estado != 'borrador'"/>
+
                             <field name="motivo"
                                    widget="radio"
                                    options="{'horizontal': true}"
                                    readonly="estado != 'borrador'"/>
+
                             <field name="dias_retraso"
                                    string="Días de Retraso"
                                    decoration-danger="dias_retraso &gt;= 3"
                                    invisible="estado in ('finalizado','cancelado')"/>
+
                             <field name="tiempo_respuesta_texto"
                                    invisible="estado != 'finalizado'"/>
                         </group>
                     </group>
 
                     <notebook>
-                        <!-- Pestaña principal: dictamen y evidencias -->
                         <page string="Análisis de Auditoría" name="auditoria">
                             <separator string="Dictamen Técnico de Calidad"/>
+
                             <field name="descripcion_devolucion"
                                    placeholder="Describa el estado del producto, la causa del defecto y el impacto estimado..."
                                    readonly="estado in ('finalizado','cancelado')"/>
 
                             <separator string="Evidencias Fotográficas (Producto y Factura)"/>
+
                             <field name="imagen_ids"
                                    mode="kanban"
                                    readonly="estado in ('finalizado','cancelado')">
+
                                 <kanban>
                                     <field name="id"/>
                                     <field name="nombre"/>
                                     <field name="archivo"/>
+
                                     <templates>
                                         <t t-name="kanban-box">
                                             <div class="oe_kanban_global_click"
                                                  style="width:130px;border:1px solid #ddd;padding:5px;margin:5px;border-radius:4px;">
+
                                                 <div class="o_kanban_image text-center">
                                                     <img t-if="record.archivo.raw_value"
                                                          t-att-src="kanban_image('pyme.devolucion.imagen','archivo',record.id.raw_value)"
                                                          alt="Evidencia"
                                                          style="max-width:100%;height:80px;object-fit:cover;"/>
                                                 </div>
+
                                                 <div class="oe_kanban_details text-center mt-1">
-                                                    <small><field name="nombre"/></small>
+                                                    <small>
+                                                        <field name="nombre"/>
+                                                    </small>
                                                 </div>
                                             </div>
                                         </t>
                                     </templates>
                                 </kanban>
+
                                 <form>
                                     <group>
                                         <field name="nombre"
                                                placeholder="Ej: Foto frontal del producto dañado"/>
-                                        <field name="archivo" widget="image" class="oe_avatar"/>
+
+                                        <field name="archivo"
+                                               widget="image"
+                                               class="oe_avatar"/>
                                     </group>
                                 </form>
                             </field>
                         </page>
 
-                        <!-- Pestaña de resolución -->
                         <page string="Resolución Final"
                               name="resolucion"
                               invisible="estado != 'finalizado'">
                             <group>
                                 <field name="resolucion"/>
-                                <field name="write_date" string="Fecha de Cierre" readonly="1"/>
-                                <field name="tiempo_respuesta_texto" string="Tiempo Total de Atención"/>
+                                <field name="write_date"
+                                       string="Fecha de Cierre"
+                                       readonly="1"/>
+                                <field name="tiempo_respuesta_texto"
+                                       string="Tiempo Total de Atención"/>
                             </group>
                         </page>
                     </notebook>
@@ -175,9 +209,7 @@
         </field>
     </record>
 
-    <!-- ═══════════════════════════════════════════
-         VISTA ÁRBOL (LIST)
-    ═══════════════════════════════════════════ -->
+    <!-- VISTA ÁRBOL -->
     <record id="view_pyme_devolucion_tree" model="ir.ui.view">
         <field name="name">pyme.devolucion.tree</field>
         <field name="model">pyme.devolucion</field>
@@ -186,21 +218,32 @@
                   decoration-success="estado == 'finalizado'"
                   decoration-muted="estado == 'cancelado'"
                   sample="1">
+
                 <field name="dias_retraso" column_invisible="True"/>
                 <field name="nombre" decoration-bf="1"/>
                 <field name="cliente_id"/>
                 <field name="responsable_id"/>
                 <field name="producto_id"/>
                 <field name="cantidad"/>
-                <field name="motivo" widget="badge"
+
+                <field name="motivo"
+                       widget="badge"
                        decoration-danger="motivo == 'dañado'"
                        decoration-warning="motivo == 'incorrecto'"/>
-                <field name="valor_estimado" sum="Total Impacto" widget="monetary"/>
+
+                <field name="valor_estimado"
+                       sum="Total Impacto"
+                       widget="monetary"/>
+
                 <field name="currency_id" column_invisible="True"/>
-                <field name="resolucion" widget="badge"
+
+                <field name="resolucion"
+                       widget="badge"
                        decoration-danger="resolucion == 'sin_garantia'"
                        optional="show"/>
-                <field name="estado" widget="badge"
+
+                <field name="estado"
+                       widget="badge"
                        decoration-warning="estado == 'borrador'"
                        decoration-info="estado == 'proceso'"
                        decoration-success="estado == 'finalizado'"
@@ -209,15 +252,15 @@
         </field>
     </record>
 
-    <!-- ═══════════════════════════════════════════
-         VISTA KANBAN PRINCIPAL
-    ═══════════════════════════════════════════ -->
+    <!-- VISTA KANBAN PRINCIPAL -->
     <record id="view_pyme_devolucion_kanban" model="ir.ui.view">
         <field name="name">pyme.devolucion.kanban</field>
         <field name="model">pyme.devolucion</field>
         <field name="arch" type="xml">
-            <kanban default_group_by="estado" sample="1"
+            <kanban default_group_by="estado"
+                    sample="1"
                     quick_create="false">
+
                 <field name="nombre"/>
                 <field name="cliente_id"/>
                 <field name="producto_id"/>
@@ -228,46 +271,67 @@
                 <field name="valor_estimado"/>
                 <field name="currency_id"/>
                 <field name="responsable_id"/>
+
                 <templates>
                     <t t-name="kanban-box">
                         <div t-attf-class="oe_kanban_card oe_kanban_global_click #{record.dias_retraso.raw_value >= 3 &amp;&amp; record.estado.raw_value !== 'finalizado' &amp;&amp; record.estado.raw_value !== 'cancelado' ? 'border-danger' : ''}">
+
                             <div class="oe_kanban_content p-2">
+
                                 <div class="d-flex justify-content-between">
-                                    <strong><field name="nombre"/></strong>
+                                    <strong>
+                                        <field name="nombre"/>
+                                    </strong>
+
                                     <span class="badge"
                                           t-attf-style="background-color: #{record.estado.raw_value == 'finalizado' ? '#28a745' : record.estado.raw_value == 'proceso' ? '#17a2b8' : '#6c757d'}; color:white;">
                                         <field name="estado"/>
                                     </span>
                                 </div>
+
                                 <div class="mt-1 text-muted small">
-                                    <i class="fa fa-user" title="Cliente"/> <field name="cliente_id"/>
+                                    <i class="fa fa-user" title="Cliente"/>
+                                    <field name="cliente_id"/>
                                 </div>
+
                                 <div class="mt-1 small">
-                                    <i class="fa fa-cube" title="Producto"/> <field name="producto_id"/>
+                                    <i class="fa fa-cube" title="Producto"/>
+                                    <field name="producto_id"/>
                                 </div>
+
                                 <div class="d-flex justify-content-between mt-2">
                                     <span class="badge bg-light text-dark">
                                         <field name="motivo"/>
                                     </span>
+
                                     <strong>
-                                        <field name="valor_estimado" widget="monetary"
+                                        <field name="valor_estimado"
+                                               widget="monetary"
                                                options="{'currency_field': 'currency_id'}"/>
                                     </strong>
                                 </div>
-                                <!-- Resolución Sin Garantía destacada -->
+
                                 <div class="mt-1 small"
                                      t-if="record.resolucion.raw_value == 'sin_garantia'">
-                                    <span class="badge bg-danger text-white">🚫 Sin Garantía</span>
+                                    <span class="badge bg-danger text-white">
+                                        🚫 Sin Garantía
+                                    </span>
                                 </div>
+
+                                <!-- CORRECCIÓN: operadores JavaScript -->
                                 <div class="mt-1 small"
-                                     t-if="record.dias_retraso.raw_value > 0 and record.estado.raw_value !== 'finalizado' and record.estado.raw_value !== 'cancelado'">
+                                     t-if="record.dias_retraso.raw_value > 0 &amp;&amp; record.estado.raw_value !== 'finalizado' &amp;&amp; record.estado.raw_value !== 'cancelado'">
+
                                     <span t-attf-class="text-#{record.dias_retraso.raw_value >= 3 ? 'danger' : 'warning'}">
                                         ⏱ <field name="dias_retraso"/> días
                                     </span>
                                 </div>
+
                             </div>
+
                             <div class="oe_kanban_footer d-flex justify-content-end p-1">
-                                <field name="responsable_id" widget="many2one_avatar_user"/>
+                                <field name="responsable_id"
+                                       widget="many2one_avatar_user"/>
                             </div>
                         </div>
                     </t>
@@ -276,85 +340,120 @@
         </field>
     </record>
 
-    <!-- ═══════════════════════════════════════════
-         VISTA BÚSQUEDA Y FILTROS
-    ═══════════════════════════════════════════ -->
+    <!-- VISTA BÚSQUEDA Y FILTROS -->
     <record id="view_pyme_devolucion_search" model="ir.ui.view">
         <field name="name">pyme.devolucion.search</field>
         <field name="model">pyme.devolucion</field>
         <field name="arch" type="xml">
             <search string="Buscar Devoluciones">
+
                 <field name="nombre" string="Referencia"/>
                 <field name="cliente_id"/>
                 <field name="producto_id"/>
                 <field name="responsable_id"/>
 
                 <separator/>
-                <filter string=" En Borrador"    name="borrador"      domain="[('estado','=','borrador')]"/>
-                <filter string=" En Validación"  name="proceso"       domain="[('estado','=','proceso')]"/>
-                <filter string=" Finalizados"    name="done"          domain="[('estado','=','finalizado')]"/>
-                <filter string=" Cancelados"     name="cancelado"     domain="[('estado','=','cancelado')]"/>
-                <filter string=" Sin Garantía"   name="sin_garantia"  domain="[('resolucion','=','sin_garantia')]"/>
+
+                <filter string="En Borrador"
+                        name="borrador"
+                        domain="[('estado','=','borrador')]"/>
+
+                <filter string="En Validación"
+                        name="proceso"
+                        domain="[('estado','=','proceso')]"/>
+
+                <filter string="Finalizados"
+                        name="done"
+                        domain="[('estado','=','finalizado')]"/>
+
+                <filter string="Cancelados"
+                        name="cancelado"
+                        domain="[('estado','=','cancelado')]"/>
+
+                <filter string="Sin Garantía"
+                        name="sin_garantia"
+                        domain="[('resolucion','=','sin_garantia')]"/>
 
                 <separator/>
-                <filter string=" Retrasados (&gt;3 días)" name="late"
+
+                <filter string="Retrasados (&gt;3 días)"
+                        name="late"
                         domain="[('dias_retraso','&gt;=',3),('estado','not in',['finalizado','cancelado'])]"/>
-                <filter string=" Creados este mes" name="this_month"
+
+                <filter string="Creados este mes"
+                        name="this_month"
                         domain="[('create_date','&gt;=', (context_today() + relativedelta(day=1)).strftime('%Y-%m-%d'))]"/>
 
                 <separator/>
-                <filter string="Mis Devoluciones" name="my_returns"
+
+                <filter string="Mis Devoluciones"
+                        name="my_returns"
                         domain="[('responsable_id','=',uid)]"/>
 
                 <group expand="0" string="Agrupar Por">
-                    <filter string="Estado"      name="group_estado"    context="{'group_by': 'estado'}"/>
-                    <filter string="Causal"      name="group_motivo"    context="{'group_by': 'motivo'}"/>
-                    <filter string="Resolución"  name="group_resolucion" context="{'group_by': 'resolucion'}"/>
-                    <filter string="Cliente"     name="group_cliente"   context="{'group_by': 'cliente_id'}"/>
-                    <filter string="Responsable" name="group_resp"      context="{'group_by': 'responsable_id'}"/>
-                    <filter string="Mes"         name="group_mes"       context="{'group_by': 'create_date:month'}"/>
+                    <filter string="Estado"
+                            name="group_estado"
+                            context="{'group_by': 'estado'}"/>
+
+                    <filter string="Causal"
+                            name="group_motivo"
+                            context="{'group_by': 'motivo'}"/>
+
+                    <filter string="Resolución"
+                            name="group_resolucion"
+                            context="{'group_by': 'resolucion'}"/>
+
+                    <filter string="Cliente"
+                            name="group_cliente"
+                            context="{'group_by': 'cliente_id'}"/>
+
+                    <filter string="Responsable"
+                            name="group_resp"
+                            context="{'group_by': 'responsable_id'}"/>
+
+                    <filter string="Mes"
+                            name="group_mes"
+                            context="{'group_by': 'create_date:month'}"/>
                 </group>
             </search>
         </field>
     </record>
 
-    <!-- ═══════════════════════════════════════════
-         VISTA GRÁFICO
-    ═══════════════════════════════════════════ -->
+    <!-- VISTA GRÁFICO -->
     <record id="view_pyme_devolucion_graph" model="ir.ui.view">
         <field name="name">pyme.devolucion.graph</field>
         <field name="model">pyme.devolucion</field>
         <field name="arch" type="xml">
-            <graph string="Estadísticas de Devoluciones" type="bar" stacked="1">
+            <graph string="Estadísticas de Devoluciones"
+                   type="bar"
+                   stacked="1">
                 <field name="motivo" type="row"/>
                 <field name="valor_estimado" type="measure"/>
             </graph>
         </field>
     </record>
 
-    <!-- ═══════════════════════════════════════════
-         VISTA PIVOT
-    ═══════════════════════════════════════════ -->
+    <!-- VISTA PIVOT -->
     <record id="view_pyme_devolucion_pivot" model="ir.ui.view">
         <field name="name">pyme.devolucion.pivot</field>
         <field name="model">pyme.devolucion</field>
         <field name="arch" type="xml">
-            <pivot string="Análisis de Logística Inversa" display_quantity="1">
-                <field name="motivo"     type="row"/>
+            <pivot string="Análisis de Logística Inversa"
+                   display_quantity="1">
+                <field name="motivo" type="row"/>
                 <field name="resolucion" type="col"/>
                 <field name="valor_estimado" type="measure"/>
             </pivot>
         </field>
     </record>
 
-    <!-- ═══════════════════════════════════════════
-         ACCIÓN PRINCIPAL DE VENTANA
-    ═══════════════════════════════════════════ -->
+    <!-- ACCIÓN PRINCIPAL -->
     <record id="action_pyme_devolucion" model="ir.actions.act_window">
         <field name="name">Control de Devoluciones</field>
         <field name="res_model">pyme.devolucion</field>
         <field name="view_mode">kanban,tree,form,graph,pivot</field>
         <field name="context">{'search_default_borrador': 0}</field>
+
         <field name="help" type="html">
             <p class="o_view_nocontent_smiling_face">
                 Registre su primera devolución haciendo clic en "Nuevo".
@@ -365,9 +464,7 @@
         </field>
     </record>
 
-    <!-- ═══════════════════════════════════════════
-         MENÚS
-    ═══════════════════════════════════════════ -->
+    <!-- MENÚS -->
     <menuitem id="menu_pyme_root"
               name="Devoluciones Pro"
               sequence="10"/>
