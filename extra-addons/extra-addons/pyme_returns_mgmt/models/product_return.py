@@ -6,7 +6,7 @@ from datetime import timedelta
 class DevolucionProducto(models.Model):
     _name = 'pyme.devolucion'
     _inherit = ['mail.thread', 'mail.activity.mixin']
-    _description = 'Gestión de Devoluciones al Barril'
+    _description = 'Gestión de Devoluciones de Productos'
     _order = 'id desc'
 
     # ─────────────────────────────────────────────
